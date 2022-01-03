@@ -18,7 +18,7 @@ module.exports = {
         name: faker.commerce.productName(),
         description: faker.commerce.product() + '/' + faker.commerce.productName(),
         price: faker.commerce.price(),
-        image: faker.image.imageUrl(),
+        image: `https://loremflickr.com/640/480/product?lock=${index+1}`,
         createdAt: new Date(),
         updatedAt: new Date(),
       }))
