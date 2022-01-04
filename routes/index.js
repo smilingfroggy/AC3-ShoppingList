@@ -10,5 +10,6 @@ router.get('/', function(req, res, next) {
 
 router.get('/product', productController.getProduct)
 router.get('/cart', cartController.getCart)
+router.post('/cart', cartController.postCart)
 
 module.exports = router;
