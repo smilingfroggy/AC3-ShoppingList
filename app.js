@@ -4,7 +4,9 @@ const path = require('path');
 const cookieParser = require('cookie-parser');
 const logger = require('morgan');
 const { engine } = require('express-handlebars')
+const session = require('express-session')
 const port = process.env.PORT || 3000
+require('dotenv').config()
 
 const indexRouter = require('./routes/index');
 const usersRouter = require('./routes/users');
@@ -25,6 +27,13 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
+app.use(session({
+  secret: process.env.SESSION_SECRET,
+  name: process.env.SESSION_NAME,
+  resave: false,
+  saveUninitialized: true,
+  cookie: { maxAge: 80000 }
+}))
 
 app.use('/', indexRouter);
 app.use('/users', usersRouter);
