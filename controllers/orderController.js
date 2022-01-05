@@ -2,8 +2,15 @@ const db = require('../models')
 const Order = db.Order
 const OrderItem = db.OrderItem
 const Cart = db.Cart
-const Product = db.Product
-const dottie = require('dottie')
+const nodemailer = require('nodemailer')
+
+const mailTransport = nodemailer.createTransport({
+  service: 'gmail',
+  auth: {
+    user: process.env.GMAIL_ACCOUNT,
+    pass: process.env.GMAIL_PASSWORD
+  }
+})
 
 const orderController = {
   getOrders: (req, res) => {
@@ -32,7 +39,7 @@ const orderController = {
           amount: req.body.amount
         })
           .then(order => {
-
+            // 準備將cart內容複製到order(CartItem到OrderItem)
             let results = []
             for (let i = 0; i < cart.items.length; i++) {
               results.push(OrderItem.create({
@@ -42,6 +49,21 @@ const orderController = {
                 ProductId: cart.items[i].id
               }))
             }
+            // 寄出確認信
+            const mailOptions = {
+              from: `Jennifer <${process.env.GMAIL_ACCOUNT}>`,
+              to: 'jenniferh6603+AC@gmail.com',
+              subject: `編號${order.id} 訂單成立`,
+              text: `編號${order.id} 訂單成立`
+            }
+            mailTransport.sendMail(mailOptions, function (error, info) {
+              if (error) {
+                console.log(error)
+              } else {
+                console.log(`Email sent: ${info.response}`)
+              }
+            })
+
             return Promise.all(results)
               .then(() => {
                 return res.redirect('/orders')
