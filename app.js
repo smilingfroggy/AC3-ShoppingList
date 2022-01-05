@@ -5,6 +5,7 @@ const cookieParser = require('cookie-parser');
 const logger = require('morgan');
 const { engine } = require('express-handlebars')
 const session = require('express-session')
+const methodOverride = require('method-override')
 const port = process.env.PORT || 3000
 require('dotenv').config()
 
@@ -24,6 +25,7 @@ app.set('view engine', 'hbs');
 
 app.use(logger('dev'));
 app.use(express.json());
+app.use(methodOverride('_method'))
 app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
