@@ -8,7 +8,7 @@ router.get('/', function(req, res, next) {
   res.render('index', { title: 'Express' });
 });
 
-router.get('/product', productController.getProduct)
+router.get('/products', productController.getProduct)
 router.get('/cart', cartController.getCart)
 router.post('/cart', cartController.postCart)
 router.post('/cartItem/:id/add', cartController.addCartItem)
