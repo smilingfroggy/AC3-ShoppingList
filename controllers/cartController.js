@@ -4,16 +4,12 @@ const CartItem = db.CartItem
 
 const cartController = {
   getCart: (req, res) => {
-    Cart.findByPk( req.session.cartId, {
+    Cart.findByPk(req.session.cartId, {
       include: 'items'  //items: [ Product {...,CartItem: {} } ]
     }).then(cart => {
-      console.log(cart)
-      cart = cart || { items: [] } // findByPk找不到時回傳null
+      cart = cart ? cart.toJSON() : { items: [] }  //findByPk找不到時回傳null
       let totalPrice = cart.items.length > 0 ? cart.items.map(d => d.CartItem.quantity * d.price).reduce((a, b) => a + b) : 0
-      console.log('totalPrice: ',totalPrice)
-      return res.render('cart', {
-        cart: cart.toJSON(), totalPrice
-      })
+      return res.render('cart', { cart, totalPrice })
     })
   },
   postCart: (req, res) => {
