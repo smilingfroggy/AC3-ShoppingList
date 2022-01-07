@@ -84,7 +84,19 @@ const orderController = {
             return res.redirect('back')
           })
       })
-  }
+  },
+  getPayment: (req, res) => { //
+    console.log('going to pay orderId:', req.params.id)
+    Order.findByPk(req.params.id)
+      .then(order => {
+        order = order.toJSON()
+        return res.render('payment', { order })
+      })
+  },
+  newebpayCallback: (req, res) => { //接收來自藍新的 交易支付系統回傳參數
+    console.log('newebpayCallback req.body', req.body)
+    return res.redirect('back')
+  },
 }
 
 module.exports = orderController
