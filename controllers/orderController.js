@@ -2,6 +2,7 @@ const db = require('../models')
 const Order = db.Order
 const OrderItem = db.OrderItem
 const Cart = db.Cart
+const crypto = require('crypto')
 const nodemailer = require('nodemailer')
 
 const mailTransport = nodemailer.createTransport({
@@ -11,6 +12,78 @@ const mailTransport = nodemailer.createTransport({
     pass: process.env.GMAIL_PASSWORD
   }
 })
+
+const URL = process.env.URL
+const MerchantID = process.env.MERCHANT_ID
+const HashKey = process.env.HASH_KEY
+const HashIV = process.env.HASH_IV
+const NewebPay = "https://ccore.newebpay.com/MPG/mpg_gateway"
+const ReturnURL = URL + "/newebpay/callback?from=ReturnURL" //完成後將使用者導回商店頁面
+const NotifyURL = URL + "/newebpay/callback?from=NotifyURL" //讓藍新回傳給後端 交易結果
+const ClientBackURL = URL + "/orders"
+
+function getDataChain(TradeInfo) {
+  let results = []
+  for (const [key, value] of Object.entries(TradeInfo)) {
+    results.push(`${key}=${value}`)
+  }
+  return results.join("&")
+}
+
+function create_mpg_aes_encrypt(TradeInfo) {  // 加密
+  let encrypt = crypto.createCipheriv('aes256', HashKey, HashIV)
+  let enc = encrypt.update(getDataChain(TradeInfo), 'utf8', 'hex')
+  return enc + encrypt.final('hex')
+}
+
+function create_mpg_sha_encrypt(TradeInfo) {  // 雜湊處理
+  let sha = crypto.createHash('sha256')
+  let plainText = `HashKey=${HashKey}&${TradeInfo}&HashIV=${HashIV}`
+  return sha.update(plainText).digest('hex').toUpperCase()
+}
+
+function getTradeInfo(Amt, Desc, email) {
+  const data = {
+    MerchantID: MerchantID,
+    RespondType: 'JSON',
+    TimeStamp: Date.now(),
+    Version: '2.0',
+    LangType: 'zh-tw',
+    MerchantOrderNo: Date.now(),
+    Amt: Amt,
+    ItemDesc: Desc,
+    Email: email,
+    LoginType: 0,
+    OrderComment: 'OrderComment',
+    ReturnURL: ReturnURL,
+    NotifyURL: NotifyURL,
+    ClientBackURL: ClientBackURL
+  }
+
+  console.log('===== getTradeInfo =====')
+  console.log(Amt, Desc, email)
+  console.log('==========')
+
+  const mpg_aes_encrypt = create_mpg_aes_encrypt(data)
+  const mpg_sha_encrypt = create_mpg_sha_encrypt(mpg_aes_encrypt)
+
+  console.log('===== getTradeInfo: mpg_aes_encrypt, mpg_sha_encrypt =====')
+  console.log(mpg_aes_encrypt)
+  console.log(mpg_sha_encrypt)
+
+  const tradeInfo = {
+    MerchantID: MerchantID,
+    TradeInfo: mpg_aes_encrypt,
+    TradeSha: mpg_sha_encrypt,
+    Version: 2.0,
+    NewebPay: NewebPay,
+    MerchantOrderNo: data.MerchantOrderNo //存入DB用於比對、更新交易狀態
+    // EncryptType:
+  }
+  console.log('===== getTradeInfo: tradeInfo =====')
+  console.log(tradeInfo)
+  return tradeInfo
+}
 
 const orderController = {
   getOrders: (req, res) => {
@@ -85,12 +158,21 @@ const orderController = {
           })
       })
   },
-  getPayment: (req, res) => { //
+  getPayment: (req, res) => { //點選立即付款
     console.log('going to pay orderId:', req.params.id)
-    Order.findByPk(req.params.id)
+    return Order.findByPk(req.params.id)
       .then(order => {
-        order = order.toJSON()
-        return res.render('payment', { order })
+        console.log('# ', req.params.id, 'order', order.toJSON())
+        const tradeInfo = getTradeInfo(order.amount, '產品名稱', 'jenniferh6603@gmail.com')
+        console.log('tradeInfo.MerchantOrderNo:', tradeInfo.MerchantOrderNo)        
+        order.update({
+          id: req.params.id,
+          sn: tradeInfo.MerchantOrderNo //成立時間搓記，用於比對交付款資訊
+        }).then(order => {
+          return res.render('payment', { order, tradeInfo })
+        }).catch(error => {
+          console.log(error)
+        })
       })
   },
   newebpayCallback: (req, res) => { //接收來自藍新的 交易支付系統回傳參數
