@@ -36,6 +36,15 @@ function create_mpg_aes_encrypt(TradeInfo) {  // 加密
   return enc + encrypt.final('hex')
 }
 
+function create_mpg_aes_decrypt(TradeInfo) {  // 解密
+  let decrypt = crypto.createDecipheriv('aes256', HashKey, HashIV)
+  decrypt.setAutoPadding(false)
+  let text = decrypt.update(TradeInfo, 'hex', 'utf8')
+  let plainText = text + decrypt.final('utf8')
+  let result = plainText.replace(/[\x00-\x20]+/g, "")
+  return result
+}
+
 function create_mpg_sha_encrypt(TradeInfo) {  // 雜湊處理
   let sha = crypto.createHash('sha256')
   let plainText = `HashKey=${HashKey}&${TradeInfo}&HashIV=${HashIV}`
@@ -176,8 +185,29 @@ const orderController = {
       })
   },
   newebpayCallback: (req, res) => { //接收來自藍新的 交易支付系統回傳參數
+    console.log('===== newebpayCallback =====')
+    console.log('newebpayCallback req.method', req.method)
+    console.log('newebpayCallback req.query', req.query)
     console.log('newebpayCallback req.body', req.body)
-    return res.redirect('back')
+
+    const data = JSON.parse(create_mpg_aes_decrypt(req.body.TradeInfo))
+    console.log('===== decrypt(req.body.TradeInfo) =====')
+    console.log(data)
+
+    Order.findOne({
+      where: {
+        sn: data.Result.MerchantOrderNo
+      }
+    }).then(order => {
+      console.log(`MerchantOrderNo ${data.Result.MerchantOrderNo} order:`, order)
+      order.update({
+        payment_status: 1
+      }).then(order => {
+        return res.redirect('/orders')
+      })
+    }).catch(error => {
+      console.log(error)
+    })
   },
 }
 
